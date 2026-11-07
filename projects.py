@@ -1,5 +1,5 @@
 """Original GGF project and render orchestration. Every media take is preserved."""
-import json, uuid, shutil, threading, time, subprocess
+import json, uuid, shutil, threading, time, subprocess, secrets
 from datetime import datetime
 from pathlib import Path
 from PIL import Image,ImageOps
@@ -11,6 +11,14 @@ from runtime import Worker
 
 GPU_LOCK=threading.Lock()
 CANCEL=threading.Event()
+DEFAULT_SCENE = 'Keep the setting and choreography.'
+
+def job_seed(seed=-1):
+    if seed is None or seed == -1:
+        return secrets.randbelow(2**31)
+    if int(seed) != seed or not 0 <= seed < 2**31:
+        raise ValueError('Choose -1 for a random seed, or an integer from 0 to 2147483647.')
+    return int(seed)
 
 def save(doc):
     folder=Path(doc['folder'])
@@ -30,6 +38,13 @@ def load(folder):
 
 def new_project(source,cast,request,start=0,duration=5.167,short_edge=480,window=124,prepared=False,project_root=None):
     if not source or not Path(source).is_file():raise ValueError('Upload a source video.')
+    for number, item in enumerate(cast, 1):
+        if item.get('image'):
+            missing = [label for key, label in (('source', 'Original person to replace'),
+                                                ('description', 'Replacement appearance'))
+                       if not (item.get(key) or '').strip()]
+            if missing:
+                raise ValueError(f'Character {number}: fill in {" and ".join(missing)}.')
     info=probe(source); start=float(start); duration=float(duration)
     if start<0 or start>=info['duration']:raise ValueError('Start time is outside the video.')
     if not 0<duration<=120:raise ValueError('Choose a duration from 0 to 120 seconds.')
@@ -49,7 +64,6 @@ def new_project(source,cast,request,start=0,duration=5.167,short_edge=480,window
     checked=[]
     for i,item in enumerate(cast):
         if not item.get('image'):continue
-        if not item.get('source','').strip() or not item.get('description','').strip():raise ValueError('Every cast photo needs an original-person label and a replacement description.')
         with Image.open(item['image']) as im:
             im=ImageOps.exif_transpose(im).convert('RGB'); im.thumbnail((1536,1536))
             target=folder/f'cast-{i+1}.png'; im.save(target)
@@ -72,7 +86,7 @@ def new_project(source,cast,request,start=0,duration=5.167,short_edge=480,window
     del thumbs
     doc={'format':'ggf-recast-1','folder':str(folder),'source':str(source_copy),'source_info':info,
          'start_seconds':start,'frames':total,'width':width,'height':height,'short_edge':short_edge,
-         'cast':checked,'request':request or 'Use the replacement appearances in the edited frames.',
+         'cast':checked,'request':request or DEFAULT_SCENE,
          'detected_cuts':cuts,'shots':[],'exports':[]}
     if selection:doc['input_selection']=selection
     for i,shot in enumerate(shots):

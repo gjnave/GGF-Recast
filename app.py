@@ -63,7 +63,7 @@ def import_frame(folder,index,path):
     try:
         if projects.GPU_LOCK.locked():raise ValueError('Wait for the current job or cancel it before changing frames.')
         doc=projects.adopt_frame(folder,index,path);return projects.gallery(doc),describe(doc)
-    except Exception as exc:raise gr.Error(str(exc))
+    except Exception as exc:return gr.skip(), error_status(exc)
 
 def show_frame(folder,index):
     if not folder or not index:return None
@@ -71,28 +71,37 @@ def show_frame(folder,index):
 
 def cancel():projects.CANCEL.set();return 'Cancellation requested. Completed takes will remain in the project.'
 
+def error_status(exc):
+    message = exc.message if isinstance(exc, gr.Error) else str(exc)
+    return f'Error: {message or type(exc).__name__}'
 
 def prepare_current(folder, previous_form, seed, progress=gr.Progress(), *form, project_root=None):
     try:
         model_setup.require_models()
+        seed = projects.job_seed(seed)
         if not folder or previous_form != list(form):
             progress(0, desc='Reading the selected video')
             folder = create(*form,project_root=project_root)[0]
         doc = projects.load(folder)
         if doc['cast']:
             doc = projects.paint_all(folder,seed,lambda e:progress(0,desc=e['message']),replace=True)
-            message = 'Prepared frame ready for all sections.'
+            message = f'Prepared frame ready for all sections. Seed {seed}.'
         else:
             message = 'Import one edited frame under Manual frame editing.'
         return (folder, projects.gallery(doc), message,
                 gr.update(choices=[s['id'] for s in doc['shots']],value=1),
                 doc['shots'][0]['source_frame'], list(form), None, None)
     except Exception as exc:
-        raise gr.Error(str(exc)) from exc
+        skip = gr.skip()
+        return skip, [], error_status(exc), skip, skip, None, None, None
 
 
 def open_current(path, *form):
-    return (*open_project(path), list(form))
+    try:
+        return (*open_project(path), list(form))
+    except Exception as exc:
+        skip = gr.skip()
+        return skip, skip, error_status(exc), skip, skip, skip, skip, skip
 
 
 def generate(folder, previous_form, seed, progress=gr.Progress(), *form, project_root=None):
@@ -101,6 +110,7 @@ def generate(folder, previous_form, seed, progress=gr.Progress(), *form, project
     skip = gr.skip()
     try:
         model_setup.require_models()
+        seed = projects.job_seed(seed)
         if not folder or previous_form != list(form):
             progress(0, desc='Preparing frames automatically before video generation')
             folder, gallery, status, index, original = create(*form,project_root=project_root)
@@ -123,9 +133,9 @@ def generate(folder, previous_form, seed, progress=gr.Progress(), *form, project
         def render_progress(event):
             progress((event.get('step', 0), event.get('total', 1)), desc=event['message'])
         doc, path = projects.render_all(folder, seed, render_progress)
-        yield skip, skip, describe(doc) + '\nVideo ready to download.', skip, skip, path, path, skip
+        yield skip, skip, describe(doc) + f'\nVideo ready to download. Seed {seed}.', skip, skip, path, path, skip
     except Exception as exc:
-        raise gr.Error(str(exc)) from exc
+        yield skip, skip, error_status(exc), skip, skip, skip, skip, skip
 
 
 def create_tab(phone_root):
@@ -138,7 +148,7 @@ def create_tab(phone_root):
             duration=gr.Number(label='Duration (seconds, up to 120)',value=5.167,minimum=.25,maximum=120)
             quality=gr.Radio([('Normal · 736p higher detail (experimental)','736'),('Turbo Mode · 480p faster','480')],value='480',label='Generation mode')
             window=gr.Dropdown([90,124,175,226,294],value=124,label='Frames per render window')
-    request=gr.Textbox(label='Scene instructions',placeholder='Keep the setting and choreography. Replace the two dancers with the selected cast.',lines=2)
+    request=gr.Textbox(label='Scene instructions',value=projects.DEFAULT_SCENE,lines=2)
     fields=[]
     with gr.Row():
         for n in (1,2):
@@ -157,7 +167,8 @@ def create_tab(phone_root):
                     fields.extend([photo,who,desc])
     gr.Markdown('For a manual workflow, leave cast photos empty and import your own edited source frame under Manual frame editing below. Cast assignments are saved when you create the project.')
     create_button=gr.Button('Extract source frames only (for manual editing)',visible=False)
-    seed=gr.Number(label='Seed',value=42,precision=0,minimum=0,maximum=2147483647)
+    seed=gr.Number(label='Seed',value=-1,precision=0,minimum=-1,maximum=2147483647,
+                   info='-1 picks a new seed each time. Enter a fixed seed to repeat a result.')
     paint_button=gr.Button('Prepare replacement frame',variant='primary')
     prep_status=gr.Textbox(label='Preparation status',interactive=False,lines=1)
     gallery=gr.Gallery(label='Prepared cast frame',columns=1,height=420,object_fit='contain',elem_id='prepared-preview')
@@ -182,7 +193,11 @@ def create_tab(phone_root):
     form = [video,start,duration,quality,window,request,*fields]
     previous_form = gr.State(None)
     job = dict(concurrency_id='gpu', concurrency_limit=1)
-    paint_button.click(partial(prepare_current,project_root=phone_root),[folder,previous_form,seed,*form],[folder,gallery,prep_status,index,original,previous_form,result,download],api_name="prepare_current",show_progress_on=[prep_status],**job)
+    paint_button.click(lambda: ([], 'Preparing replacement frame…'), outputs=[gallery,prep_status],
+                       queue=False, show_progress='hidden', api_name=False).then(
+        partial(prepare_current,project_root=phone_root),[folder,previous_form,seed,*form],
+        [folder,gallery,prep_status,index,original,previous_form,result,download],
+        api_name="prepare_current",show_progress_on=[prep_status],**job)
     render_button.click(partial(generate,project_root=phone_root),[folder,previous_form,seed,*form],[*outputs,result,download,previous_form],api_name="generate",show_progress_on=[status],**job)
     import_button.click(import_frame,[folder,index,manual],[gallery,prep_status])
     index.change(show_frame,[folder,index],[original])

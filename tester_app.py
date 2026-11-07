@@ -39,7 +39,7 @@ def source_details(video):
         p=upload(video,{'.mp4','.mov','.webm','.mkv','.avi','.m4v'},2048)
         info=probe(p)
         return f'Source: {info["duration"]:.2f} seconds · {info["width"]} × {info["height"]} · {Path(p).stat().st_size/1024**2:.1f} MB. Choose the part to process below.','0',str(min(5,round(info['duration'],3))),None
-    except Exception as exc:raise failure(exc)
+    except Exception as exc:return 'Error: '+failure(exc).message, gr.skip(), gr.skip(), gr.skip()
 
 def selected_clip(video,start,end,quality):
     if shutil.disk_usage(ROOT).free<20*1024**3:raise ValueError('The test server is full. Please try later.')
@@ -68,7 +68,7 @@ def preview_selection(video,start,end,quality,progress=gr.Progress()):
         progress(0,desc='FFmpeg: trimming and resizing the selected range')
         path,selection=selected_clip(video,start,end,quality)
         return path,selection_summary(selection,quality)
-    except Exception as exc:raise failure(exc)
+    except Exception as exc:return gr.skip(), 'Error: '+failure(exc).message
 
 def current(folder):
     if not folder:raise ValueError('Prepare your replacement frames first.')
@@ -104,10 +104,11 @@ def prepare(video,first,left,first_identity,second,right,second_identity,instruc
         doc=projects.new_project(video,cast,instructions,0,selection['prepared']['duration'],int(quality),90 if int(quality)==736 else 124,prepared=True)
         doc['input_selection']=selection;projects.save(doc)
         progress(0,desc='Preparing your replacement frames. Jobs use one shared GPU.')
-        doc=projects.paint_all(doc['folder'],42,lambda e:progress(0,desc=e['message']))
+        seed=projects.job_seed()
+        doc=projects.paint_all(doc['folder'],seed,lambda e:progress(0,desc=e['message']))
         gallery=[(publish(projects.prepared_frame(doc)), 'Cast frame for the whole clip')]
-        return doc['folder'],gallery,gallery[0][0],selection_summary(selection,quality)+'\nFrame ready. Check the cast: original character completely gone, correct pose and framing. Refine descriptions and prepare again if needed.',None,video
-    except Exception as exc:raise failure(exc)
+        return doc['folder'],gallery,gallery[0][0],selection_summary(selection,quality)+f'\nFrame ready. Seed {seed}. Check the cast, pose and framing before generating.',None,video
+    except Exception as exc:return None, [], None, 'Error: '+failure(exc).message, None, gr.skip()
 
 def render(folder,quality,start,end,progress=gr.Progress()):
     try:
@@ -116,9 +117,10 @@ def render(folder,quality,start,end,progress=gr.Progress()):
         selection=prepared.get('input_selection',{})
         if int(quality)!=prepared['short_edge'] or abs(parse_timestamp(start)-selection.get('start',0))>1/24 or abs(parse_timestamp(end)-selection.get('end',prepared['frames']/24))>1/24:
             raise ValueError('The mode or timestamps changed. Prepare replacement frames for the new selection before generating.')
-        doc,path=projects.render_all(folder,42,lambda e:progress((e.get('step',0),e.get('total',1)),desc=e['message']))
-        return publish(path),'Finished. Download your result from the video player.'
-    except Exception as exc:raise failure(exc)
+        seed=projects.job_seed()
+        doc,path=projects.render_all(folder,seed,lambda e:progress((e.get('step',0),e.get('total',1)),desc=e['message']))
+        return publish(path),f'Finished. Seed {seed}. Download your result from the video player.'
+    except Exception as exc:return gr.skip(), 'Error: '+failure(exc).message
 
 def select_frame(folder,evt:gr.SelectData):
     try:
@@ -155,7 +157,7 @@ def build(preview_fixture=None):
                 second=gr.Image(label='Replacement character 2 (optional)',type='filepath',sources=['upload'],height=220)
                 right=gr.Textbox(label='Which character in the source video?',value='The person on the right',max_length=1000)
                 second_identity=gr.Textbox(label='Which character in reference image 2?',placeholder='Describe the replacement character if the reference contains several people.',max_length=1000)
-        instructions=gr.Textbox(label='Scene instructions',value='Keep the setting and choreography. Replace the selected people with the reference characters.',max_length=1000)
+        instructions=gr.Textbox(label='Scene instructions',value=projects.DEFAULT_SCENE,max_length=1000)
         prepare_button=gr.Button('1 · Prepare / regenerate replacement frames',variant='primary')
         reference=gr.Image(value=preview_fixture,label='Prepared frame · full image fitted to view',type='filepath',interactive=False,height=None,width=760,elem_id='frame-preview')
         gallery=gr.Gallery(label='Choose a section to review',columns=6,height=150,object_fit='contain',allow_preview=False)
@@ -164,9 +166,12 @@ def build(preview_fixture=None):
         status=gr.Textbox(label='Status',interactive=False)
         video.change(source_details,video,[source_info,start,end,clip])
         preview_button.click(preview_selection,[video,start,end,quality],[clip,status])
-        prepare_button.click(prepare,[video,first,left,first_identity,second,right,second_identity,instructions,start,end,quality],[state,gallery,reference,status,result,clip],concurrency_id='gpu',concurrency_limit=1)
+        prepare_button.click(lambda:([],None,'Preparing replacement frame…'), outputs=[gallery,reference,status],
+                             queue=False,show_progress='hidden',api_name=False).then(
+            prepare,[video,first,left,first_identity,second,right,second_identity,instructions,start,end,quality],
+            [state,gallery,reference,status,result,clip],concurrency_id='gpu',concurrency_limit=1,show_progress_on=[status])
         gallery.select(select_frame,state,reference)
-        render_button.click(render,[state,quality,start,end],[result,status],concurrency_id='gpu',concurrency_limit=1)
+        render_button.click(render,[state,quality,start,end],[result,status],concurrency_id='gpu',concurrency_limit=1,show_progress_on=[status])
         # A prepared frame belongs to exactly the input selection that made it.
         # Changing source/cast/mode cannot accidentally render the previous project.
         for component in [video,first,left,first_identity,second,right,second_identity,instructions,start,end,quality]:
