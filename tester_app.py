@@ -10,6 +10,7 @@ os.environ['GRADIO_ANALYTICS_ENABLED']='False'
 import json,shutil,uuid,logging,hashlib,threading
 import gradio as gr
 import projects
+import branding
 from settings import settings,APP
 from media import probe,selection_bounds,prepare_clip,plan_windows,parse_timestamp
 
@@ -17,7 +18,7 @@ base=settings()
 projects.settings=lambda:{**base,'projects':str(ROOT/'projects')}
 logging.basicConfig(filename=str(ROOT/'server.log'),level=logging.INFO)
 PREP_LOCK=threading.Lock()
-CSS='''
+CSS=branding.CSS+'''
 .gradio-container {max-width:1100px!important;margin:auto!important;}
 #frame-preview {width:min(760px,100%)!important;max-width:100%!important;margin:0 auto!important;height:auto!important;}
 #frame-preview .image-container {height:auto!important;min-height:160px!important;}
@@ -132,7 +133,7 @@ def select_frame(folder,evt:gr.SelectData):
 
 def build(preview_fixture=None):
     with gr.Blocks(title='GGF Recast · Test Preview') as demo:
-        gr.Markdown('# GGF Recast\n### Replace characters. Keep the performance.')
+        gr.HTML(branding.HEADER)
         gr.Markdown('**Test preview v3 · Normal / Turbo · select up to 2 minutes**\n\nUpload a video, select your timestamps and add replacement characters. Preview the selected clip, prepare and review its frames, then generate. Longer selections take multiple render sections and can show seams between sections. Keep this page open while processing.')
         gr.Markdown('Uploads are processed and retained on the host computer for this test. Use non-sensitive material you have permission to share. Powered by Viggle Remake / MiniMax H3.')
         state=gr.State(None)

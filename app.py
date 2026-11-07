@@ -5,20 +5,21 @@ os.environ.setdefault('GRADIO_ANALYTICS_ENABLED','False')
 from pathlib import Path
 import gradio as gr
 import projects
+import branding
 from settings import settings
 import model_setup
 from model_ui import setup_tab
 
-CSS='''
-body {background:#0b1019;} .gradio-container{max-width:1240px!important;margin:auto!important;}
-#brand{padding:20px 24px;border:1px solid #344052;border-radius:16px;background:linear-gradient(110deg,#172333,#132b2b);margin-bottom:16px;}
+CSS=branding.CSS+'''
+body {background:#0b1019;} .gradio-container{width:100%!important;min-width:0!important;max-width:1240px!important;margin:auto!important;box-sizing:border-box;}
+.gradio-container .main{padding-inline:clamp(8px,3vw,32px)!important;min-width:0;}
+#model-inventory code{white-space:normal;overflow-wrap:anywhere;}
 #prepared-preview{max-width:760px;margin:auto;}
 #prepared-preview img{object-fit:contain!important;}
 #recast-setup-guide{background:#111c2f;border-radius:12px;padding:16px;}
 #recast-setup-guide :is(h3,p,strong){color:#e8eef9!important;}
 #recast-setup-video{width:100%;max-width:420px;}
 #recast-model-install{background:#f5b942!important;color:#091425!important;}
-#brand h1{font-size:32px;margin-bottom:4px;color:#f3fbff!important;} #brand p{color:#b6d4cf;}
 '''
 
 def describe(doc):
@@ -208,7 +209,7 @@ def create_tab(phone_root):
 
 def build(phone_root=None, remote=False):
     with gr.Blocks(title='GGF Recast') as demo:
-        gr.HTML('<div id="brand"><h1>GGF Recast</h1><p>New characters. Original performance. Local video editing.</p></div>')
+        gr.HTML(branding.HEADER)
         with gr.Tabs(selected='create' if model_setup.ready() else 'settings') as tabs:
             with gr.Tab('Create',id='create'):
                 create_tab(phone_root)

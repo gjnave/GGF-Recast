@@ -4,6 +4,7 @@ from queue import Queue
 from threading import Thread
 import gradio as gr
 import model_setup as models
+from branding import FLOYD_PROMO
 from settings import APP
 
 def snapshot():
@@ -45,7 +46,7 @@ def setup_tab(tabs, remote=False):
                             'When you see **Installed**, open **Create**. Next time, Recast opens there automatically.')
         gr.Markdown('### Recast model set\nQwen Image 2.1 prepares the cast frame. Viggle Remake / MiniMax H3 renders the video. '
                     f'Turbo and Normal share the same eight files ({sum(e["size"] for e in models.MANIFEST)/1e9:.1f} GB total).')
-        status = gr.Markdown(listing)
+        status = gr.Markdown(listing,elem_id='model-inventory')
         if not remote:
             with gr.Accordion('Publisher model terms', open=False):
                 gr.Markdown((APP/'MODEL-TERMS.txt').read_text(encoding='utf8'))
@@ -58,6 +59,7 @@ def setup_tab(tabs, remote=False):
                              concurrency_id='model-setup', concurrency_limit=1, trigger_mode='once',
                              api_name='install_models' if action else 'verify_models')
         refresh = gr.Button('Refresh model status')
+        gr.HTML(FLOYD_PROMO)
     def refresh_view():
         ok, listing = snapshot()
         return listing, gr.update(visible=not ok and not remote)
