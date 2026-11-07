@@ -208,7 +208,7 @@ def create_tab(phone_root):
         open_button.click(open_current,[saved,*form],[*outputs,result,download,previous_form],show_progress_on=[status])
 
 def build(phone_root=None, remote=False):
-    with gr.Blocks(title='GGF Recast') as demo:
+    with gr.Blocks(title='Viggle Recast · Get Going Fast') as demo:
         gr.HTML(branding.HEADER)
         with gr.Tabs(selected='create' if model_setup.ready() else 'settings') as tabs:
             with gr.Tab('Create',id='create'):
@@ -230,8 +230,8 @@ if __name__=='__main__':
     import urllib.request,json,webbrowser
     try:
         with urllib.request.urlopen(f'http://127.0.0.1:{args.port}/config',timeout=2) as response:running=json.load(response)
-        if running.get('title')=='GGF Recast':
-            print(f'GGF Recast is already running at http://127.0.0.1:{args.port}')
+        if running.get('title') in {'GGF Recast', 'Viggle Recast · Get Going Fast'}:
+            print(f'Viggle Recast is already running at http://127.0.0.1:{args.port}')
             if not args.no_browser:webbrowser.open(f'http://127.0.0.1:{args.port}')
             raise SystemExit(0)
     except (OSError,ValueError):pass
