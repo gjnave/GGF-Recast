@@ -1,0 +1,37 @@
+GGF RECAST — VALIDATION RECORD — 2026-11-06
+
+PASS: Two complete GPU image-to-video workflows, including a final run in the
+app's independent Python environment. No existing Floyd app files were changed.
+PASS: Replacement of both people with robot/astronaut references in our own
+procedurally generated two-person animation. Sampled output frames inspected.
+PASS: Exactly 90 output frames, 24 fps, 832 x 480, duration 3.75 seconds.
+PASS: Original audio exported; waveform correlation 0.999998762 (AAC re-encode).
+PASS: Source upload, project creation and manual reference import through the
+running Gradio API. A 1-second selection plans 24 output / 90 inference frames.
+PASS: Re-import preserves previous reference take; project history preserved.
+PASS: Saved-project output preview and completed-shot resume/re-export via API.
+PASS: Cancel endpoint responds. Active in-flight GPU cancellation not exercised.
+PASS: Three CPU regression tests cover window coverage/padding, media timing and
+no-overwrite behavior, and explicit two-reference prompt binding.
+PASS: CUDA, model-file presence, FFmpeg and UI self-check in independent runtime.
+PASS: Four newly downloaded video/text/VAE model files verified against publisher
+SHA-256 hashes. Bootstrap metadata preflight validates eight pinned model files.
+PASS: CMD installer /check and Start-GGF-Recast.bat --self-check.
+
+Independent runtime: Python 3.11.9, torch 2.10.0+cu130, Gradio 6.29.0, PyAV 18.1.0.
+Hardware: NVIDIA RTX 4090 24 GB; approximately 128 GB system RAM.
+Image stage: 21.46 seconds. Video stage: 105.60 seconds, including model loading,
+conditioning, six sampling steps and decoding. Timings are this short fixture.
+Peak PyTorch GPU allocation: 22.109 GiB; peak reserved: 22.930 GiB.
+
+NOT VALIDATED: GPUs below 24 GB; 736p generation; realistic/occluded subjects;
+three/four-character generation; long multi-shot generation; fresh-machine BAT
+installation from start to finish; performance on another computer. The complete
+independent environment and actual rendering were tested on this computer.
+
+Observed quality: both replacements persist and move in sampled frames. Some
+background/text/framing drift is visible. This establishes a working pipeline,
+not production quality or parity with all WanGP/Showrunner features.
+
+See samples/smoke-results.json and samples/api-smoke.json for machine-readable
+evidence; samples/smoke-test.mp4 is the actual independent-runtime result.
