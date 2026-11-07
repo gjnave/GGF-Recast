@@ -5,13 +5,15 @@ cd /d "%~dp0"
 set "PYTHONDONTWRITEBYTECODE=1"
 set "GRADIO_ANALYTICS_ENABLED=False"
 if exist ".venv\Scripts\python.exe" (
-  ".venv\Scripts\python.exe" app.py %*
-  exit /b %errorlevel%
+  set "GGF_PYTHON=%~dp0.venv\Scripts\python.exe"
+  goto :configured
 )
 if exist "runtime-python.txt" (
   set /p GGF_PYTHON=<runtime-python.txt
-  "%GGF_PYTHON%" app.py %*
-  exit /b %errorlevel%
+  goto :configured
 )
 echo Run the installer first, or configure runtime-python.txt for an existing runtime.
 exit /b 1
+:configured
+"%GGF_PYTHON%" app.py %*
+exit /b %errorlevel%
