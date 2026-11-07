@@ -9,11 +9,12 @@ Do not run the installer here unless you want another full model installation.
 
 QUICK START
 1. Upload a video. Choose a short, clear shot and select its timestamps.
-   Turbo uses 480p; Normal uses native 736p with the same INT8 model.
+   Turbo defaults to 480p; Normal uses native 736p with the same INT8 model.
 2. Add replacement images and describe which original person each replaces.
-3. Create the project, then open Review frames and prepare replacement frames.
-4. Inspect each edited frame. You can import your own edited source frame.
-5. Click Generate video. Download the MP4 when complete.
+3. Click Generate video to prepare missing frames and render automatically.
+   To inspect or import a frame first, click Prepare replacement frames.
+   Generate uses the prepared frames and leaves the preview visible.
+4. Download the MP4 when complete.
 Saved projects can be reopened. Completed shots are reused; older takes remain.
 The included samples show the exact synthetic two-character smoke-test fixture.
 

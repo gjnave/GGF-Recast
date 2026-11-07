@@ -105,8 +105,8 @@ def prepare(video,first,left,first_identity,second,right,second_identity,instruc
         doc['input_selection']=selection;projects.save(doc)
         progress(0,desc='Preparing your replacement frames. Jobs use one shared GPU.')
         doc=projects.paint_all(doc['folder'],42,lambda e:progress(0,desc=e['message']))
-        gallery=[(publish(s['edited_frames'][0]),f'Shot {s["id"]}') for s in doc['shots']]
-        return doc['folder'],gallery,gallery[0][0],selection_summary(selection,quality)+'\nFrames ready. Check every section: original character completely gone, correct pose and framing. Refine descriptions and prepare again if needed.',None,video
+        gallery=[(publish(projects.prepared_frame(doc)), 'Cast frame for the whole clip')]
+        return doc['folder'],gallery,gallery[0][0],selection_summary(selection,quality)+'\nFrame ready. Check the cast: original character completely gone, correct pose and framing. Refine descriptions and prepare again if needed.',None,video
     except Exception as exc:raise failure(exc)
 
 def render(folder,quality,start,end,progress=gr.Progress()):

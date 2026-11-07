@@ -28,7 +28,7 @@ def load(folder):
     if doc.get('format')!='ggf-recast-1':raise ValueError('Unsupported project format.')
     return doc
 
-def new_project(source,cast,request,start=0,duration=5.167,short_edge=480,window=124,prepared=False):
+def new_project(source,cast,request,start=0,duration=5.167,short_edge=480,window=124,prepared=False,project_root=None):
     if not source or not Path(source).is_file():raise ValueError('Upload a source video.')
     info=probe(source); start=float(start); duration=float(duration)
     if start<0 or start>=info['duration']:raise ValueError('Start time is outside the video.')
@@ -39,7 +39,7 @@ def new_project(source,cast,request,start=0,duration=5.167,short_edge=480,window
     width,height=canvas(info['width'],info['height'],short_edge)
     if max(width,height)>1600:raise ValueError('Use a source aspect ratio no wider than about 2:1.')
     name=datetime.now().strftime('%Y%m%d-%H%M%S')+'-'+uuid.uuid4().hex[:6]
-    folder=Path(settings()['projects'])/name; folder.mkdir(parents=True)
+    folder=Path(project_root or settings()['projects'])/name; folder.mkdir(parents=True)
     source_copy=folder/('source'+Path(source).suffix.lower()) if prepared else folder/'source.mp4'
     selection=None
     if prepared:shutil.copy2(source,source_copy)
@@ -61,7 +61,9 @@ def new_project(source,cast,request,start=0,duration=5.167,short_edge=480,window
     diffs=np.mean(np.abs(np.diff(thumbs.astype(np.float32),axis=0)),axis=(1,2,3))
     cuts=[]
     for i,value in enumerate(diffs,1):
-        if value>45 and (not cuts or i-cuts[-1]>=12) and 6<i<total-6:cuts.append(i)
+        baseline = np.median(np.r_[diffs[max(0,i-7):i-1], diffs[i:i+6]]) if len(diffs)>1 else value
+        is_cut = value > 45 or (value > 26 and value > 5 * max(1, baseline))
+        if is_cut and (not cuts or i-cuts[-1]>=12) and 6<i<total-6:cuts.append(i)
     if cuts:
         shots=[]
         for begin,end in zip([0,*cuts],[*cuts,total]):
@@ -81,9 +83,28 @@ def new_project(source,cast,request,start=0,duration=5.167,short_edge=480,window
             'edited_frames':[],'image_takes':[],'video_takes':[],'state':'needs_frame'})
     save(doc);return doc
 
+def prepared_frame(doc):
+    if doc.get('prepared_frame'):
+        return doc['prepared_frame']
+    # Earlier projects stored several paintings. Use the first reviewed one.
+    return next((shot['edited_frames'][0] for shot in doc['shots'] if shot['edited_frames']), None)
+
+
 def gallery(doc):
-    return [(s['edited_frames'][0] if s['edited_frames'] else s['source_frame'],
-             f'Shot {s["id"]} · {s["count"]/24:.2f}s · {s["state"]}') for s in doc['shots']]
+    frame = prepared_frame(doc)
+    return [(frame, 'Prepared frame for the whole clip')] if frame else []
+
+
+def set_prepared_frame(doc, shot, path):
+    doc['prepared_frame'] = str(path)
+    doc['prepared_shot'] = shot['id']
+    for section in doc['shots']:
+        section['edited_frames'] = [str(path)]
+        section.pop('reference_pins', None)
+        section.pop('selected_video', None)
+        section['state'] = 'frame_ready'
+    save(doc)
+
 
 def adopt_frame(folder,index,path):
     doc=load(folder); shot=doc['shots'][int(index)-1]
@@ -91,50 +112,71 @@ def adopt_frame(folder,index,path):
     target=Path(folder)/f'shot-{shot["id"]:03d}-manual-{uuid.uuid4().hex[:8]}.png'
     with Image.open(path) as im:
         ImageOps.exif_transpose(im).convert('RGB').resize((doc['width'],doc['height']),Image.Resampling.LANCZOS).save(target)
-    shot['image_takes'].append(str(target));shot['edited_frames']=[str(target)];shot['state']='frame_ready'
-    shot.pop('selected_video',None);save(doc);return doc
+    shot['image_takes'].append(str(target))
+    set_prepared_frame(doc, shot, target)
+    return doc
 
-def paint_all(folder,seed,progress):
+
+def paint_all(folder,seed,progress,replace=False):
     if not GPU_LOCK.acquire(blocking=False):raise RuntimeError('Another GPU job is running.')
     CANCEL.clear(); worker=Worker('image')
     try:
         doc=load(folder)
-        if not doc['cast']:raise ValueError('This project has no cast references. Import an edited frame for each shot instead.')
-        for s in doc['shots']:
-            if s['edited_frames']:continue
-            output=Path(folder)/f'shot-{s["id"]:03d}-paint-{uuid.uuid4().hex[:8]}.png'
-            progress({'message':f'Preparing shot {s["id"]} / {len(doc["shots"])}'})
-            try:
-                result=worker.request({'source_frame':s['source_frame'],'references':[x['image'] for x in doc['cast']],
-                    'prompt':image_prompt(doc['cast'])+' '+doc['request'],'cast':doc['cast'],'instructions':doc['request'],'seed':int(seed)+s['id'],
-                    'resolution':1024,'output':str(output)},folder,progress,CANCEL)
-                s['image_takes'].append(result['output']);s['edited_frames']=[result['output']];s['state']='frame_ready';s['image_metrics']=result
-            except Exception as exc:s['state']='paint_failed';s['error']=str(exc);save(doc);raise
-            save(doc)
+        if prepared_frame(doc) and not replace:
+            return doc
+        if not doc['cast']:raise ValueError('Add cast references or import an edited frame.')
+        shot = doc['shots'][0]
+        output = Path(folder) / f'cast-paint-{uuid.uuid4().hex[:8]}.png'
+        progress({'message': 'Preparing one cast frame for the entire clip'})
+        result = worker.request({'source_frame':shot['source_frame'],'references':[x['image'] for x in doc['cast']],
+            'prompt':image_prompt(doc['cast'])+' '+doc['request'],'cast':doc['cast'],'instructions':doc['request'],
+            'seed':int(seed)+shot['id'],'resolution':1024,'output':str(output)},folder,progress,CANCEL)
+        shot['image_takes'].append(result['output'])
+        shot['image_metrics']=result
+        set_prepared_frame(doc, shot, result['output'])
         return doc
     finally:worker.stop();GPU_LOCK.release()
+
 
 def render_all(folder,seed,progress):
     if not GPU_LOCK.acquire(blocking=False):raise RuntimeError('Another GPU job is running.')
     CANCEL.clear(); worker=Worker('video')
     try:
         doc=load(folder)
-        missing=[s['id'] for s in doc['shots'] if not s['edited_frames']]
-        if missing:raise ValueError(f'Prepare or import edited frames for shots {missing} first.')
-        for s in doc['shots']:
-            if s.get('selected_video') and Path(s['selected_video']).is_file():continue
+        frame = prepared_frame(doc)
+        if not frame or not Path(frame).is_file():
+            raise ValueError('Prepare or import a cast frame first.')
+        reference_shot = doc.get('prepared_shot') or next(s['id'] for s in doc['shots'] if s['edited_frames'])
+        for i, s in enumerate(doc['shots']):
+            previous = doc['shots'][i-1] if i and s['start'] not in doc.get('detected_cuts', []) else None
+            shot_seed = int(seed) + s['id']
+            selected_take = next((take for take in reversed(s['video_takes'])
+                                  if take.get('output') == s.get('selected_video')), {})
+            if (selected_take.get('seed') == shot_seed and Path(s['selected_video']).is_file()
+                    and selected_take.get('prepared_frame') == frame):
+                continue
+            references = [frame]
+            # Fill unused model slots with real motion leading into this section.
+            # Keep absolute source timing and discard the context after decoding.
+            lead = min(previous['count'], s['render_frames'] - s['count']) if previous else 0
+            render_start = doc['start_seconds'] + (s['start'] - lead) / 24
+            # Only the section the picture came from has a matching keyframe
+            # time. Later sections use it as an appearance reference.
+            pins = [lead+s['pin']] if s['id']==reference_shot else []
             output=Path(folder)/f'shot-{s["id"]:03d}-render-{uuid.uuid4().hex[:8]}.mp4'
             progress({'message':f'Rendering shot {s["id"]} / {len(doc["shots"])}'})
             s['state']='rendering';save(doc)
             def section_progress(event):
                 progress({**event,'message':f'Section {s["id"]} / {len(doc["shots"])} · {event["message"]}'})
             try:
-                result=worker.request({'source':doc['source'],'start':doc['start_seconds']+s['start']/24,
+                result=worker.request({'source':doc['source'],'start':render_start,'context_frames':lead,
                     'frames':s['render_frames'],'trim_frames':s['count'],'width':doc['width'],'height':doc['height'],
-                    'short_edge':doc['short_edge'],'references':s['edited_frames'],'pins':[s['pin']],
-                    'prompt':video_prompt(doc['cast'],doc['request']),'seed':int(seed)+s['id'],'output':str(output)},folder,section_progress,CANCEL)
+                    'short_edge':doc['short_edge'],'references':references,'pins':pins,
+                    'prompt':video_prompt(doc['cast'],doc['request'],appearance_only=not pins),'seed':shot_seed,'output':str(output)},folder,section_progress,CANCEL)
                 actual=frame_count(output)
                 if actual!=s['count']:raise RuntimeError(f'Render returned {actual} frames; expected {s["count"]}.')
+                result['prepared_frame'] = frame
+                result['seed'] = shot_seed
                 s['video_takes'].append(result);s['selected_video']=str(output);s['state']='rendered';s.pop('error',None)
             except Exception as exc:s['state']='render_failed';s['error']=str(exc);save(doc);raise
             save(doc)

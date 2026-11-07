@@ -8,7 +8,7 @@
 
 The quick setup page is pending publication; the manual source instructions below work now.
 
-GGF Viggle Recast replaces up to four characters in a source video using reference images. Select a time range, prepare and review replacement frames, then generate the finished video with its source audio. **Normal** renders at 736p; **Turbo Mode** renders at 480p. Both use the same INT8 video model. Longer selections are assembled from sections and may show seams.
+GGF Viggle Recast replaces up to four characters in a source video using reference images. Select a time range, prepare one cast frame for the entire clip, then generate the finished video with its source audio. **Normal** renders at 736p; **Turbo Mode** renders at 480p. Both use the same INT8 video model. Longer selections are assembled from sections and may show seams.
 
 The video model is [Viggle Remake](https://huggingface.co/Viggle/Viggle-Remake), derived from MiniMax H3. Qwen Image 2.1 prepares reference frames. GGF wrote the application and orchestration code. The published model weights and embedded inference components come from their respective publishers.
 
@@ -37,8 +37,8 @@ RUN.bat
 
 1. Upload a source video and enter start and end timestamps. The app trims and resizes only that selection with FFmpeg. The public tester accepts up to 2 GB per upload and up to 120 seconds per selection.
 2. Add reference images and describe which source character each image replaces.
-3. Prepare the frames, inspect the full fitted preview, and adjust or import edited reference frames if needed.
-4. Choose **Normal** for 736p detail or **Turbo Mode** for faster 480p output, then click **Generate video**. Download the MP4 from the app.
+3. Turbo (480p) is selected by default. Choose Normal for 736p detail.
+4. Click **Generate video** to prepare missing frames and render. To review or edit frames first, click **Prepare replacement frame**. Prepare again to replace the active cast frame. Generate reuses that frame across sections and keeps the preview visible. Download the finished MP4 from the app.
 
 On the verified RTX 4090, a six-second, two-section Normal render produced 1280 × 736 video with preserved audio and took about **15.5 minutes** for video generation. Real footage, complex occlusion, four-character casts, and the full 120-second range need more testing. Outputs may drift or show section seams. Details are in [README.txt](README.txt) and [SMOKE-TEST.txt](SMOKE-TEST.txt).
 

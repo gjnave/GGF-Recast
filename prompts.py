@@ -26,11 +26,14 @@ def image_prompt(cast,plans=None):
             ' Keep the same number of characters as image 1. Edit only the selected subject in place.'
             ' Do not paste a photo or add a person in front of the original. Return only the edited scene.')
 
-def video_prompt(cast,request,reference_count=1):
+def video_prompt(cast,request,reference_count=1,appearance_only=False):
     subjects=[]
     for i,entry in enumerate(cast,1):
         subjects.append(f'<Subject {i}> is the replacement for {entry["source"]}: {entry["description"]}. Its appearance is shown in the supplied target pictures.')
     pictures='\n'.join(f'<Picture {i}> shows the intended edited scene at a known moment of <Video 1>.' for i in range(1,reference_count+1))
+    if appearance_only:
+        pictures = ('<Picture 1> defines the faces, clothes and accessories for the entire clip. '
+                    'Use the motion, pose, framing and background from <Video 1> throughout.')
     return ('subject_definitions:\n<Video 1> contains the original scene, camera movement and performances.\n'+pictures+'\n'+'\n'.join(subjects)+
             '\n\nsummary:\nThe video shows the assigned replacement characters performing the original actions. '+request+
             '\n\nretention_analysis:\nThe source composition, choreography, camera path, props and timing remain consistent.'

@@ -2,7 +2,7 @@
 .gradio/
 __pycache__/
 *.pyc
-models/
+/models/
 projects/
 outputs/
 runtime/

@@ -6,6 +6,9 @@ def main():
     import torch,gradio,av
     print('PyTorch',torch.__version__,'Gradio',gradio.__version__,'PyAV',av.__version__)
     print('CUDA',torch.cuda.is_available())
+    # Exercise the same imports as preparation, so incomplete bundles fail here.
+    from worker import initialise
+    initialise(); print('Inference worker imports successfully.')
     from app import build
     build();print('Interface builds successfully.')
     from media import ffmpeg_path

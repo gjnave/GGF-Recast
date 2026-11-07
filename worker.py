@@ -145,14 +145,27 @@ class VideoEngine:
         if nf<90 or nf>294 or (nf-5)%17: raise ValueError('Video length must be 17n+5 frames, from 90 to 294.')
         refs=req['references']; pins=req.get('pins',[])
         if not 1<=len(refs)<=4:raise ValueError('Provide one to four edited frames.')
-        if len(pins)!=len(refs) or any(int(p)<0 or int(p)>=nf for p in pins):raise ValueError('Each edited frame needs a valid zero-based position.')
+        if len(pins) not in (0,len(refs)) or any(int(p)<0 or int(p)>=nf for p in pins):raise ValueError('Each edited frame needs a valid zero-based position.')
         self.load(); t=self.torch
         t.cuda.reset_peak_memory_stats()
         progress('Reading source motion and original audio')
         own=int(req.get('trim_frames',nf))
-        frames=read_frames(req['source'],float(req.get('start',0)),own/24,int(req['width']),int(req['height']))
-        if own<nf:frames=np.concatenate([frames,np.repeat(frames[-1:],nf-own,axis=0)])
-        audio=audio_samples(req['source'],float(req.get('start',0)),own/24)
+        lead = int(req.get('context_frames', 0))
+        real = lead + own
+        if lead < 0 or own < 1 or real > nf:
+            raise ValueError('Invalid render context or output length.')
+        frames=read_frames(req['source'],float(req.get('start',0)),real/24,int(req['width']),int(req['height']))
+        audio=audio_samples(req['source'],float(req.get('start',0)),real/24)
+        # Short scenes need motion throughout the model window. Spread the real
+        # samples across it, then select the matching output times before export.
+        output_indices = np.arange(lead, real)
+        if real < nf:
+            source_indices = np.rint(np.linspace(0, real-1, nf)).astype(int)
+            frames = frames[source_indices]
+            output_indices = np.rint(output_indices * (nf-1) / max(1, real-1)).astype(int)
+            pins = [round(pin * (nf-1) / max(1, real-1)) for pin in pins]
+            timeline = np.linspace(0, audio.shape[1]-1, round(nf*32000/24))
+            audio = np.stack([np.interp(timeline, np.arange(len(ch)), ch) for ch in audio]).astype(np.float32)
         kw={f'ref_{i+1}':load_rgb(p,t) for i,p in enumerate(refs)}
         with t.no_grad():
             progress('Encoding video, edited frames and soundtrack')
@@ -174,7 +187,7 @@ class VideoEngine:
             comfy.model_management.unload_all_models()
             comfy.model_management.soft_empty_cache()
             pixels=self.nodes.VAEDecode().decode(self.vae,{'samples':samples})[0]
-            result=np.rint(pixels[:int(req.get('trim_frames',nf))].cpu().numpy().clip(0,1)*255).astype(np.uint8)
+            result=np.rint(pixels[output_indices.tolist()].cpu().numpy().clip(0,1)*255).astype(np.uint8)
         path=write_video(result,req['output'])
         t.cuda.synchronize()
         return {'output':path,'frames':len(result),'width':result.shape[2],'height':result.shape[1],
