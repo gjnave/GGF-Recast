@@ -1,0 +1,55 @@
+GGF Recast preview v3 — 2026-11-06
+
+Normal and Turbo
+- Normal is the default: native 736p generation, using short 90-frame sections.
+- Turbo Mode retains the 480p path, with sections up to 124 frames in the tester.
+- Both modes use the installed INT8 convrot video model and INT8 text encoder.
+  No new weights were downloaded and no higher-precision model is implied.
+- The main action is Generate video. Changing mode or timestamps after preparing
+  references requires preparing the new selection before generation.
+
+Long uploads and selected ranges
+- Tester upload limit raised from 80 MB to 2 GB for video. Source duration and
+  the old 4K dimension cap are no longer rejection criteria.
+- Start and end accept seconds, MM:SS or HH:MM:SS, including fractional seconds.
+- Select 0.25–120 seconds from any position. Longer output uses multiple sections;
+  transitions and character consistency between sections can still drift.
+- FFmpeg seeks into the source and transcodes only the selected range to a
+  manageable 24 fps MP4 at the working resolution, with its audio.
+- Preview selected range shows that normalized clip before any GPU work.
+- The local app also normalizes only its selected source range when creating
+  a new project. Original uploads and old projects are preserved.
+
+Reference review
+- Prepared frame has its own full-image preview. Its height follows the image,
+  capped at 560 displayed pixels; width is bounded to fit the interface.
+- A compact section gallery underneath switches the full preview for longer jobs.
+- The local application's gallery now uses automatic height and contain fitting.
+
+Verification
+- Public upload and late-range preview passed using a 65-second 4096 x 2304 clip.
+- A valid 90.7 MB MP4 upload passed through the public URL, beyond the old 80 MB cap.
+- Both 480p and 736p FFmpeg paths produced the expected 24 fps, duration and audio.
+- A chirp-audio test at fractional timestamps 1.37–6.37 seconds retained alignment
+  (source/output waveform correlation 0.99986 after AAC re-encoding).
+- A real multi-section CPU assembly check produced 240 frames / 10 seconds and
+  preserved the late source segment and audio. This test did not claim GPU output.
+- Existing three CPU regressions pass. Browser inspection confirms the full image
+  fits its preview and the timestamp/mode controls appear on the existing URL.
+- Additional GPU evidence is recorded separately in outputs/v3-validation.
+- Full Normal GPU test passed: a 1–7 second source selection produced two sections
+  joined into exactly 144 frames / 6 seconds, 1280 x 736 at 24 fps, with audio.
+  Source/output audio correlation was 0.9999859. Sampled frames including both
+  sides of the section boundary were inspected. Some pose/scale drift remains.
+  Video stages took 295.24 + 632.73 = 927.97 seconds (about 15.5 minutes).
+  This verifies a six-second example, not every supported 120-second selection.
+- Higher-resolution testing exposed a VAE partial-offload device mismatch after
+  sampling. The worker now unloads the large models before decoding and keeps
+  the smaller VAE resident while it runs. An isolated 90-frame 736p encode/decode
+  test passed with all normalization buffers on the correct CUDA device.
+
+Quantization notes
+The publisher offers Q8_0, Q6_K and Q4_K_M GGUF models, plus BF16 + a separate
+adapter. Its examples put INT8 close to Q8; lower-bit formats mainly save memory.
+Alternatives require loaders/weights and validation before being exposed here.
+https://huggingface.co/Viggle/Viggle-Remake/blob/main/COMFYUI.md

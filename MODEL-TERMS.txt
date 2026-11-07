@@ -1,0 +1,23 @@
+GGF Recast -- model and component notices
+
+This local development preview uses MiniMax H3-derived Viggle Remake weights.
+The model publisher's standard H3 Community License excludes the US, EU, UK and
+South Korea from its applicable territory and describes separate authorization.
+This package does not grant that authorization or certify deployment rights.
+Model terms: vendor/viggle_remake/MODEL-LICENSE
+Official terms: https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE
+
+Powered by Viggle Remake (https://huggingface.co/Viggle/Viggle-Remake)
+Powered by MiniMax H3
+The included Viggle adapter is publisher-provided Apache-2.0 code, separately
+licensed from the model weights. Preserve LICENSE-CODE and NOTICE beside it.
+
+GGF app modules are original application and orchestration code. Embedded
+third-party inference components retain their notices and licenses; see
+vendor/comfy_core/LICENSE, SOURCE.md and GGF-SOURCE-ADDITIONS.txt.
+Qwen image/text models and any optional image accelerators retain the terms
+published with their respective repositories.
+
+No WanGP, Showrunner or MMGP implementation files are part of this app package.
+The separate research archive in the parent workspace is not an app dependency.
+The sample two-character animation was generated procedurally for this test.

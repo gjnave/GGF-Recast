@@ -1,0 +1,14 @@
+.venv/
+.gradio/
+__pycache__/
+*.pyc
+models/
+projects/
+outputs/
+runtime/
+installer-cache/
+settings.local.json
+settings.backup-*.json
+runtime-python.txt
+model-verification.json
+PACKAGE-MANIFEST.json

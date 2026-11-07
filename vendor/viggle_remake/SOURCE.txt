@@ -1,0 +1,4 @@
+Viggle AI official adapter, Apache-2.0 code. Unmodified.
+https://huggingface.co/Viggle/Viggle-Remake
+Revision 21665fa7a1e038e0a5312fb15f37b18d0f06f117
+Model weights have separate terms.

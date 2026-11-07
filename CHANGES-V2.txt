@@ -1,0 +1,36 @@
+GGF Recast preview v2 — 2026-11-06
+
+Fixes prompted by actual tester outputs:
+- The reference-frame prompt could preserve the old astronaut while placing a
+  replacement person in front. It now explicitly replaces the complete subject
+  and reconstructs background uncovered by the replacement.
+- A local visual planning pass uses the already-installed Qwen vision encoder
+  to distinguish source pose/camera crop from reference identity and clothing.
+- User-selected source position remains authoritative; generated scene planning
+  cannot recenter the output or override the requested source selection.
+- The image turbo engine now uses its documented six-step, resolution-shifted
+  flow schedule and deterministic Euler, instead of generic ancestral sampling.
+- Reference editing now works at approximately one megapixel before fitting the
+  source frame. No new model downloads were required.
+- The tester distinguishes the original subject selector from a description of
+  the desired person inside a group reference. Preparation can be repeated.
+
+Validation includes three supplied failure cases: group-reference full-body
+replacement, portrait-to-full-body replacement, and close-up replacement.
+Visual inspection confirms the old astronaut silhouette is removed in the
+corrected full-body reference frames. The close-up remains a close-up.
+The three existing CPU checks pass. The updated public API also completed a new
+image + video run using the tester's supplied group reference and robot/astronaut
+clip: 90 frames, 24 fps, 832 x 480, 3.75 seconds, source audio present. Frames
+0/22/45/67/89 were visually inspected; no old astronaut parts were visible behind
+the replacement. The unselected robot remains, although its arm pose changes.
+End-to-end video evidence is saved separately
+in the workspace outputs/replacement-fix-final directory, outside this package.
+
+Limitations: source pose, exact scale and unselected background details can still
+drift. Visual planning is model-generated and can misdescribe details. This is
+not a segmentation/matte guarantee. Review prepared frames before rendering.
+
+No previous projects, reference takes or rendered videos were deleted.
+No WanGP, Showrunner or MMGP implementation code was added.
+Sampler specification: https://huggingface.co/Viggle/Qwen-Image-2.1-viggle-turbo

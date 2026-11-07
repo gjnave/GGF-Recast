@@ -1,0 +1,7 @@
+GGF Recast retains Floyd Headliner's embedded ComfyUI snapshot documented in SOURCE.md.
+Additional upstream file: comfy/audio.py, unmodified.
+Source: https://github.com/Comfy-Org/ComfyUI
+Commit: 63e5bf594339f676b4b15e072529873e3448409e
+The file retains its BSD-2-Clause audio DSP notice.
+Added to provide the resampling interface required by Viggle AI's adapter.
+No WanGP, Showrunner, or MMGP implementation files are included.

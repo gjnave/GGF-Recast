@@ -1,0 +1,63 @@
+GGF RECAST — LOCAL DEVELOPMENT PREVIEW
+Build: 2026-11-06 preview v3 (see CHANGES-V2.txt and CHANGES-V3.txt)
+
+ON THIS COMPUTER
+Run the root RUN.bat. The app opens at http://127.0.0.1:7877.
+The runtime and video models are installed on D: to preserve C: disk space.
+Existing Floyd Headliner image weights are read directly, without modifying them.
+Do not run the installer here unless you want another full model installation.
+
+QUICK START
+1. Upload a video. Choose a short, clear shot and select its timestamps.
+   Turbo uses 480p; Normal uses native 736p with the same INT8 model.
+2. Add replacement images and describe which original person each replaces.
+3. Create the project, then open Review frames and prepare replacement frames.
+4. Inspect each edited frame. You can import your own edited source frame.
+5. Click Generate video. Download the MP4 when complete.
+Saved projects can be reopened. Completed shots are reused; older takes remain.
+The included samples show the exact synthetic two-character smoke-test fixture.
+
+WHAT IS IMPLEMENTED
+Local Gradio UI; up to four cast entries; source range selection; cut detection;
+per-shot reference creation; manual reference import; private JSON GPU workers;
+serialized GPU jobs; cancellation; saved project history; resumed rendering;
+short-shot padding and trimming; multi-window assembly; original audio export.
+The tester accepts videos up to 2 GB with no source-duration cap, and selections
+up to 120 seconds. FFmpeg trims/resizes the selection before AI preparation.
+The video engine is Viggle Remake Swap on MiniMax H3. Qwen Image 2.1 prepares
+the references. Image and video workers unload between stages.
+
+GGF app orchestration and prompts were written for this app. No WanGP,
+Showrunner or MMGP code is included or required. Embedded official upstream
+ComfyUI and Viggle components are included with provenance and licenses.
+
+TESTED RESULT
+On this RTX 4090 / 128 GB RAM computer: two characters replaced in a 3.75-second
+832 x 480 clip, 90 frames at 24 fps, with source audio retained. Image preparation
+took 21.46 seconds and the video stage 105.6 seconds. Peak PyTorch allocation
+was 22.109 GiB (22.930 GiB reserved). See SMOKE-TEST.txt for scope and evidence.
+
+LIMITS OF THIS PREVIEW
+24 GB GPU verified; lower VRAM has not been validated. Normal 736p passed a
+six-second, two-section GPU test; video generation took about 15.5 minutes.
+Three/four-character casts, realistic footage, crossing people, complex occlusion
+and long clips have not been validated with generation tests. Independent windows
+can show seams. Background details and framing can drift. Review outputs.
+The cut detector is a basic heuristic, not semantic scene understanding.
+The model's territory/commercial terms still apply; see MODEL-TERMS.txt.
+This is a local development build, not a published commercial release.
+
+FRESH INSTALL
+Extract the complete ZIP onto a drive with at least 85 GB free. Keep this layout:
+  Install-GGF-Recast.bat, RUN.bat, disclaimer.md, about.nfo, thumbnail.png
+  GGF-Recast/app.py, GGF-Recast/RUN.bat and other app files
+Run Install-GGF-Recast.bat. It creates a private Python runtime, installs NVIDIA
+PyTorch, and downloads SHA-256-verified pinned model files (about 73 GB).
+Internet is needed for setup; inference runs locally afterward. The installer is
+CMD-only. Fresh-machine installation has not been tested end-to-end.
+
+CURRENT MACHINE PATHS
+Runtime/models/projects: D:\ggf-apps\ggf-recast-runtime
+Completed GPU smoke project: projects\20261106-112647-1c6f66
+Configuration: settings.local.json (inside GGF-Recast)
+The portable ZIP omits machine-specific configuration and runtime pointers.
