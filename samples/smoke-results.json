@@ -1,5 +1,5 @@
 {
-  "output": "D:\\ggf-apps\\ggf-recast-runtime\\projects\\20261106-112647-1c6f66\\GGF-Recast-1c5dd468.mp4",
+  "output": "GGF-Recast-1c5dd468.mp4",
   "probe": {
     "width": 832,
     "height": 480,
@@ -7,13 +7,13 @@
     "duration": 3.75,
     "audio": true
   },
-  "project": "D:\\ggf-apps\\ggf-recast-runtime\\projects\\20261106-112647-1c6f66",
+  "project": "20261106-112647-1c6f66",
   "frames": 90,
   "audio_waveform_correlation": 0.9999987622490903,
   "image_metrics": {
     "event": "result",
     "seconds": 21.46,
-    "output": "D:\\ggf-apps\\ggf-recast-runtime\\projects\\20261106-112647-1c6f66\\shot-001-paint-db320db9.png",
+    "output": "shot-001-paint-db320db9.png",
     "size": [
       832,
       480
@@ -23,7 +23,7 @@
   "video_metrics": {
     "event": "result",
     "seconds": 105.6,
-    "output": "D:\\ggf-apps\\ggf-recast-runtime\\projects\\20261106-112647-1c6f66\\shot-001-render-658c1915.mp4",
+    "output": "shot-001-render-658c1915.mp4",
     "frames": 90,
     "width": 832,
     "height": 480,

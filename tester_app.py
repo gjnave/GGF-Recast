@@ -1,7 +1,7 @@
 """Restricted, temporary tester interface. No filesystem/project browsing endpoints."""
 import os
 from pathlib import Path
-ROOT=Path(os.environ.get('GGF_RECAST_TEST_ROOT','D:/ggf-apps/ggf-recast-runtime/public-test'))
+ROOT=Path(os.environ.get('GGF_RECAST_TEST_ROOT',Path(__file__).resolve().parent/'public-test'))
 ROOT.mkdir(parents=True,exist_ok=True)
 CACHE=ROOT/'cache';CACHE.mkdir(exist_ok=True)
 EXPORTS=ROOT/'exports';EXPORTS.mkdir(exist_ok=True)
