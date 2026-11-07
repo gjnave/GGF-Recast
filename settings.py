@@ -32,6 +32,7 @@ def readiness():
     cfg=settings()
     checks={'Python':Path(cfg['python']).is_file(),
             'Inference core':(Path(cfg['core'])/'nodes.py').is_file()}
-    for prefix,key,files in [('Image','image_models',IMAGE_FILES),('Video','video_models',VIDEO_FILES)]:
-        for label,name in files.items(): checks[f'{prefix} {label}']=(Path(cfg[key])/name).is_file()
+    from model_setup import inventory
+    for name, state in inventory():
+        checks[name] = state in ('Present', 'Verified')
     return checks

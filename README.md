@@ -26,12 +26,13 @@ cd GGF-Recast
 uv venv --python 3.11 .venv
 uv pip install --python .venv\Scripts\python.exe torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cu130
 uv pip install --python .venv\Scripts\python.exe -r requirements.txt
-.venv\Scripts\python.exe bootstrap.py
-.venv\Scripts\python.exe self_check.py
+.venv\Scripts\python.exe self_check.py --runtime-only
 RUN.bat
 ```
 
-`bootstrap.py` downloads pinned publisher model files, checks each file's size and SHA-256 hash, and writes local settings for this checkout. If setup is interrupted, run `bootstrap.py` again to resume. Internet is needed for setup; generation runs locally afterward. `RUN.bat` only starts an already configured app. It opens at `http://127.0.0.1:7877`.
+The installer sets up the private runtime and interface. Start `RUN.bat` and open Recast at `http://127.0.0.1:7877`. If any of the eight required files are missing, Recast opens **Settings** with the **L/iZ** video above **Install / resume**. Click it to download missing weights and verify the whole set against the pinned publisher SHA-256 hashes. Retry the same button after an interruption. **Verify model files** checks existing files offline without downloading. **Refresh model status** picks up an installation completed in another window. Model setup is available on the PC, not through a phone link.
+
+When all files are present at their expected sizes, Recast opens **Create** and hides the helper. Settings distinguishes files that are present from those that have passed a hash check. Known damaged files are flagged and preserved. Generation is local and uses these same files in both modes.
 
 ## Use the app
 

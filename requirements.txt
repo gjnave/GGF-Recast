@@ -5,7 +5,7 @@ av==18.1.0
 transformers==5.17.0
 accelerate>=1.12,<2
 peft>=0.18,<1
-huggingface_hub[hf_xet]>=0.36,<2
+huggingface_hub[hf_xet]>=1.33,<2
 safetensors>=0.6.2,<1
 sentencepiece>=0.2.1,<1
 einops==0.8.2

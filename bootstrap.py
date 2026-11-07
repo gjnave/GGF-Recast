@@ -4,18 +4,8 @@ from pathlib import Path
 APP=Path(__file__).resolve().parent
 
 def download_plan():
-    vg='21665fa7a1e038e0a5312fb15f37b18d0f06f117'
-    h3='54472221d27c695fca9621b0c3ed52f06c4af707'
-    return [
-      ('Viggle/Viggle-Remake',vg,'int8/viggle_remake_swap_pruned_int8_convrot.safetensors','video/Viggle'),
-      ('Comfy-Org/MiniMax-H3',h3,'text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors','video/Comfy-Org'),
-      ('Comfy-Org/MiniMax-H3',h3,'vae/minimax_h3_video_vae_fp16.safetensors','video/Comfy-Org'),
-      ('Comfy-Org/MiniMax-H3',h3,'vae/minimax_h3_audio_vae_fp32.safetensors','video/Comfy-Org'),
-      ('Comfy-Org/Qwen-Image-2.1','eee52e917df0f00d910bc1f04f8a4d825dcef255','diffusion_models/qwen_image_2.1_int8_convrot.safetensors','image'),
-      ('Comfy-Org/Qwen3-VL','056c1bacea04322faeab9d7c9edb8c3f24460023','text_encoders/qwen3vl_8b_int8_convrot.safetensors','image'),
-      ('Comfy-Org/Qwen-Image-2.1','eee52e917df0f00d910bc1f04f8a4d825dcef255','vae/qwen_image_2.1_vae_bf16.safetensors','image'),
-      ('Viggle/Qwen-Image-2.1-viggle-turbo','bb26a0f38e5fe6c124aaccc9187a87eed5d9ed13','Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors','loras'),
-    ]
+    entries=json.loads((APP/'model-manifest.json').read_text(encoding='utf8'))
+    return [(e['repo'],e['revision'],e['name'],e['sub']) for e in entries]
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--models-root',default=str(APP/'models'))

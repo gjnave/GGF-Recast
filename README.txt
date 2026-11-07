@@ -1,11 +1,11 @@
 GGF RECAST — LOCAL DEVELOPMENT PREVIEW
 Build: 2026-11-06 preview v3 (see CHANGES-V2.txt and CHANGES-V3.txt)
 
-ON THIS COMPUTER
+FIRST RUN
 Run the root RUN.bat. The app opens at http://127.0.0.1:7877.
-The runtime and video models are installed on D: to preserve C: disk space.
-Existing Floyd Headliner image weights are read directly, without modifying them.
-Do not run the installer here unless you want another full model installation.
+If models are missing, Settings shows the L/iZ video and Install / resume.
+Downloads and SHA-256 verification run on the PC. Verify model files works offline.
+With all models present, Recast opens Create and the helper is hidden.
 
 QUICK START
 1. Upload a video. Choose a short, clear shot and select its timestamps.
@@ -52,13 +52,6 @@ FRESH INSTALL
 Extract the complete ZIP onto a drive with at least 85 GB free. Keep this layout:
   Install-GGF-Recast.bat, RUN.bat, disclaimer.md, about.nfo, thumbnail.png
   GGF-Recast/app.py, GGF-Recast/RUN.bat and other app files
-Run Install-GGF-Recast.bat. It creates a private Python runtime, installs NVIDIA
-PyTorch, and downloads SHA-256-verified pinned model files (about 73 GB).
-Internet is needed for setup; inference runs locally afterward. The installer is
-CMD-only. Fresh-machine installation has not been tested end-to-end.
-
-CURRENT MACHINE PATHS
-Runtime/models/projects: D:\ggf-apps\ggf-recast-runtime
-Completed GPU smoke project: projects\20261106-112647-1c6f66
-Configuration: settings.local.json (inside GGF-Recast)
-The portable ZIP omits machine-specific configuration and runtime pointers.
+Run Install-GGF-Recast.bat to install the private runtime, NVIDIA PyTorch and GUI.
+Run RUN.bat. In Settings, click Install / resume to download missing model files.
+Existing configured paths are preserved. Default projects live in GGF-Recast/projects.

@@ -5,13 +5,19 @@ os.environ.setdefault('GRADIO_ANALYTICS_ENABLED','False')
 from pathlib import Path
 import gradio as gr
 import projects
-from settings import settings,readiness
+from settings import settings
+import model_setup
+from model_ui import setup_tab
 
 CSS='''
 body {background:#0b1019;} .gradio-container{max-width:1240px!important;margin:auto!important;}
 #brand{padding:20px 24px;border:1px solid #344052;border-radius:16px;background:linear-gradient(110deg,#172333,#132b2b);margin-bottom:16px;}
 #prepared-preview{max-width:760px;margin:auto;}
 #prepared-preview img{object-fit:contain!important;}
+#recast-setup-guide{background:#111c2f;border-radius:12px;padding:16px;}
+#recast-setup-guide :is(h3,p,strong){color:#e8eef9!important;}
+#recast-setup-video{width:100%;max-width:420px;}
+#recast-model-install{background:#f5b942!important;color:#091425!important;}
 #brand h1{font-size:32px;margin-bottom:4px;color:#f3fbff!important;} #brand p{color:#b6d4cf;}
 '''
 
@@ -68,6 +74,7 @@ def cancel():projects.CANCEL.set();return 'Cancellation requested. Completed tak
 
 def prepare_current(folder, previous_form, seed, progress=gr.Progress(), *form, project_root=None):
     try:
+        model_setup.require_models()
         if not folder or previous_form != list(form):
             progress(0, desc='Reading the selected video')
             folder = create(*form,project_root=project_root)[0]
@@ -93,6 +100,7 @@ def generate(folder, previous_form, seed, progress=gr.Progress(), *form, project
     # project is also reusable until the operator changes one of those inputs.
     skip = gr.skip()
     try:
+        model_setup.require_models()
         if not folder or previous_form != list(form):
             progress(0, desc='Preparing frames automatically before video generation')
             folder, gallery, status, index, original = create(*form,project_root=project_root)
@@ -120,73 +128,77 @@ def generate(folder, previous_form, seed, progress=gr.Progress(), *form, project
         raise gr.Error(str(exc)) from exc
 
 
-def build(phone_root=None):
+def create_tab(phone_root):
+    gr.Markdown('Add a video and cast, then click **Generate video**. To review the replacement first, click **Prepare replacement frames**.\n\nPowered by Viggle Remake / MiniMax H3. Experimental preview; inspect results before using them.')
+    folder=gr.State(None) if phone_root else gr.Textbox(label='Current project folder',interactive=False)
+    with gr.Row():
+        video=gr.Video(label='Source video',sources=['upload'])
+        with gr.Column():
+            start=gr.Number(label='Start time (seconds)',value=0,minimum=0)
+            duration=gr.Number(label='Duration (seconds, up to 120)',value=5.167,minimum=.25,maximum=120)
+            quality=gr.Radio([('Normal · 736p higher detail (experimental)','736'),('Turbo Mode · 480p faster','480')],value='480',label='Generation mode')
+            window=gr.Dropdown([90,124,175,226,294],value=124,label='Frames per render window')
+    request=gr.Textbox(label='Scene instructions',placeholder='Keep the setting and choreography. Replace the two dancers with the selected cast.',lines=2)
+    fields=[]
+    with gr.Row():
+        for n in (1,2):
+            with gr.Column():
+                photo=gr.Image(type='filepath',label=f'Replacement character {n}',height=210)
+                who=gr.Textbox(label='Original person to replace',placeholder='The person on the left')
+                desc=gr.Textbox(label='Replacement appearance',placeholder='A silver robot wearing a blue jacket',lines=2)
+                fields.extend([photo,who,desc])
+    with gr.Accordion('Characters 3 and 4',open=False):
+        with gr.Row():
+            for n in (3,4):
+                with gr.Column():
+                    photo=gr.Image(type='filepath',label=f'Replacement character {n}',height=160)
+                    who=gr.Textbox(label='Original person to replace')
+                    desc=gr.Textbox(label='Replacement appearance',lines=2)
+                    fields.extend([photo,who,desc])
+    gr.Markdown('For a manual workflow, leave cast photos empty and import your own edited source frame under Manual frame editing below. Cast assignments are saved when you create the project.')
+    create_button=gr.Button('Extract source frames only (for manual editing)',visible=False)
+    seed=gr.Number(label='Seed',value=42,precision=0,minimum=0,maximum=2147483647)
+    paint_button=gr.Button('Prepare replacement frame',variant='primary')
+    prep_status=gr.Textbox(label='Preparation status',interactive=False,lines=1)
+    gallery=gr.Gallery(label='Prepared cast frame',columns=1,height=420,object_fit='contain',elem_id='prepared-preview')
+    render_button=gr.Button('Generate video',variant='primary')
+    status=gr.Textbox(label='Generation status',lines=2,interactive=False)
+    with gr.Accordion('Manual frame editing',open=False):
+        index=gr.Dropdown([],label='Shot',value=None)
+        original=gr.Image(label='Exact source frame to edit',type='filepath',interactive=False)
+        manual=gr.Image(label='Import your edited version of this source frame',type='filepath')
+        import_button=gr.Button('Use imported frame for selected shot')
+        gr.Markdown('Import one edited frame to use as the cast reference for the whole clip.')
+    result=gr.Video(label='Finished video',interactive=False)
+    download=gr.File(label='Download MP4',interactive=False)
+    if not phone_root:
+        with gr.Accordion('Saved projects',open=False):
+            saved=gr.Dropdown(projects.list_projects(),label='Project folder',allow_custom_value=True)
+            refresh=gr.Button('Refresh list');open_button=gr.Button('Open project')
+    stop=gr.Button('Cancel current job',variant='stop')
+    outputs=[folder,gallery,status,index,original]
+    create_button.click(partial(create,project_root=phone_root),[video,start,duration,quality,window,request,*fields],outputs,api_name="create")
+    quality.change(lambda q:gr.update(choices=[90] if str(q)=='736' else [90,124,175,226,294],value=90 if str(q)=='736' else 124),quality,window)
+    form = [video,start,duration,quality,window,request,*fields]
+    previous_form = gr.State(None)
+    job = dict(concurrency_id='gpu', concurrency_limit=1)
+    paint_button.click(partial(prepare_current,project_root=phone_root),[folder,previous_form,seed,*form],[folder,gallery,prep_status,index,original,previous_form,result,download],api_name="prepare_current",show_progress_on=[prep_status],**job)
+    render_button.click(partial(generate,project_root=phone_root),[folder,previous_form,seed,*form],[*outputs,result,download,previous_form],api_name="generate",show_progress_on=[status],**job)
+    import_button.click(import_frame,[folder,index,manual],[gallery,prep_status])
+    index.change(show_frame,[folder,index],[original])
+    stop.click(cancel,outputs=status,queue=False)
+    if not phone_root:
+        refresh.click(lambda:gr.update(choices=projects.list_projects()),outputs=saved)
+        open_button.click(open_current,[saved,*form],[*outputs,result,download,previous_form],show_progress_on=[status])
+
+def build(phone_root=None, remote=False):
     with gr.Blocks(title='GGF Recast') as demo:
         gr.HTML('<div id="brand"><h1>GGF Recast</h1><p>New characters. Original performance. Local video editing.</p></div>')
-        gr.Markdown('Add a video and cast, then click **Generate video**. To review the replacement first, click **Prepare replacement frames**.\n\nPowered by Viggle Remake / MiniMax H3. Experimental preview; inspect results before using them.')
-        with gr.Accordion('Runtime status',open=False):
-            gr.Markdown('\n'.join(f'- {"Ready" if ok else "Missing"}: {name}' for name,ok in readiness().items()))
-            gr.Markdown('Inference runs locally after installation. Model terms and third-party notices are included with the app.')
-        folder=gr.State(None) if phone_root else gr.Textbox(label='Current project folder',interactive=False)
-        with gr.Row():
-            video=gr.Video(label='Source video',sources=['upload'])
-            with gr.Column():
-                start=gr.Number(label='Start time (seconds)',value=0,minimum=0)
-                duration=gr.Number(label='Duration (seconds, up to 120)',value=5.167,minimum=.25,maximum=120)
-                quality=gr.Radio([('Normal · 736p higher detail (experimental)','736'),('Turbo Mode · 480p faster','480')],value='480',label='Generation mode')
-                window=gr.Dropdown([90,124,175,226,294],value=124,label='Frames per render window')
-        request=gr.Textbox(label='Scene instructions',placeholder='Keep the setting and choreography. Replace the two dancers with the selected cast.',lines=2)
-        fields=[]
-        with gr.Row():
-            for n in (1,2):
-                with gr.Column():
-                    photo=gr.Image(type='filepath',label=f'Replacement character {n}',height=210)
-                    who=gr.Textbox(label='Original person to replace',placeholder='The person on the left')
-                    desc=gr.Textbox(label='Replacement appearance',placeholder='A silver robot wearing a blue jacket',lines=2)
-                    fields.extend([photo,who,desc])
-        with gr.Accordion('Characters 3 and 4',open=False):
-            with gr.Row():
-                for n in (3,4):
-                    with gr.Column():
-                        photo=gr.Image(type='filepath',label=f'Replacement character {n}',height=160)
-                        who=gr.Textbox(label='Original person to replace')
-                        desc=gr.Textbox(label='Replacement appearance',lines=2)
-                        fields.extend([photo,who,desc])
-        gr.Markdown('For a manual workflow, leave cast photos empty and import your own edited source frame under Manual frame editing below. Cast assignments are saved when you create the project.')
-        create_button=gr.Button('Extract source frames only (for manual editing)',visible=False)
-        seed=gr.Number(label='Seed',value=42,precision=0,minimum=0,maximum=2147483647)
-        paint_button=gr.Button('Prepare replacement frame',variant='primary')
-        prep_status=gr.Textbox(label='Preparation status',interactive=False,lines=1)
-        gallery=gr.Gallery(label='Prepared cast frame',columns=1,height=420,object_fit='contain',elem_id='prepared-preview')
-        render_button=gr.Button('Generate video',variant='primary')
-        status=gr.Textbox(label='Generation status',lines=2,interactive=False)
-        with gr.Accordion('Manual frame editing',open=False):
-            index=gr.Dropdown([],label='Shot',value=None)
-            original=gr.Image(label='Exact source frame to edit',type='filepath',interactive=False)
-            manual=gr.Image(label='Import your edited version of this source frame',type='filepath')
-            import_button=gr.Button('Use imported frame for selected shot')
-            gr.Markdown('Import one edited frame to use as the cast reference for the whole clip.')
-        result=gr.Video(label='Finished video',interactive=False)
-        download=gr.File(label='Download MP4',interactive=False)
-        if not phone_root:
-            with gr.Accordion('Saved projects',open=False):
-                saved=gr.Dropdown(projects.list_projects(),label='Project folder',allow_custom_value=True)
-                refresh=gr.Button('Refresh list');open_button=gr.Button('Open project')
-        stop=gr.Button('Cancel current job',variant='stop')
-        outputs=[folder,gallery,status,index,original]
-        create_button.click(partial(create,project_root=phone_root),[video,start,duration,quality,window,request,*fields],outputs,api_name="create")
-        quality.change(lambda q:gr.update(choices=[90] if str(q)=='736' else [90,124,175,226,294],value=90 if str(q)=='736' else 124),quality,window)
-        form = [video,start,duration,quality,window,request,*fields]
-        previous_form = gr.State(None)
-        job = dict(concurrency_id='gpu', concurrency_limit=1)
-        paint_button.click(partial(prepare_current,project_root=phone_root),[folder,previous_form,seed,*form],[folder,gallery,prep_status,index,original,previous_form,result,download],api_name="prepare_current",show_progress_on=[prep_status],**job)
-        render_button.click(partial(generate,project_root=phone_root),[folder,previous_form,seed,*form],[*outputs,result,download,previous_form],api_name="generate",show_progress_on=[status],**job)
-        import_button.click(import_frame,[folder,index,manual],[gallery,prep_status])
-        index.change(show_frame,[folder,index],[original])
-        stop.click(cancel,outputs=status,queue=False)
-        if not phone_root:
-            refresh.click(lambda:gr.update(choices=projects.list_projects()),outputs=saved)
-            open_button.click(open_current,[saved,*form],[*outputs,result,download,previous_form],show_progress_on=[status])
+        with gr.Tabs(selected='create' if model_setup.ready() else 'settings') as tabs:
+            with gr.Tab('Create',id='create'):
+                create_tab(phone_root)
+            start_view, outputs = setup_tab(tabs, remote=remote or bool(phone_root))
+        demo.load(start_view, outputs=outputs, queue=False)
     return demo
 
 if __name__=='__main__':
@@ -210,7 +222,7 @@ if __name__=='__main__':
     if args.phone_address or args.phone_link:
         password = os.environ.get('GGF_RECAST_PHONE_PASSWORD')
         phone_root = Path(settings()['projects']).resolve().parent / 'phone-projects' if not password else None
-        phone_ui = build(phone_root).queue(max_size=8)
+        phone_ui = build(phone_root, remote=True).queue(max_size=8)
         phone_ui.launch(server_name=args.phone_address or '127.0.0.1', server_port=args.phone_port,
                         auth=('recast', password) if password else None,
                         share=args.phone_link, prevent_thread_lock=True, css=CSS,

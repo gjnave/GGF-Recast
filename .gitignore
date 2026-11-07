@@ -12,3 +12,7 @@ settings.backup-*.json
 runtime-python.txt
 model-verification.json
 PACKAGE-MANIFEST.json
+
+model-checks.local.json
+model-checks.local.tmp
+model-checks.local.lock
