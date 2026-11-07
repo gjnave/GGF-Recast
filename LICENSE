@@ -1,0 +1,12 @@
+GGF Recast -- internal development preview
+Original application code prepared for Get Going Fast, 2026.
+
+This task delivers the application and its source to Get Going Fast for local
+development and testing. A public release license for GGF's original application
+code has not been selected or published by this task.
+
+Embedded third-party components retain their licenses and notices. The ComfyUI
+inference components carry GPLv3 terms in vendor/comfy_core/LICENSE. The Viggle
+adapter carries Apache-2.0 code terms in vendor/viggle_remake/LICENSE-CODE.
+Model weights have separate licenses. See MODEL-TERMS.txt.
+Any future distribution must account for the terms of the combined package.
