@@ -1,4 +1,4 @@
-![GGF Viggle Recast](https://raw.githubusercontent.com/gjnave/GGF-Recast/main/assets/recast-thumbnail.png)
+![GGF Viggle Recast](assets/recast-thumbnail.png)
 
 # GGF Viggle Recast
 
